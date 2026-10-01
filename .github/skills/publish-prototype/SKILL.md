@@ -17,12 +17,11 @@ Publish one prototype as an internal GitHub repository and add it to the shared 
 
 ## Prototype input modes
 
-Offer two input modes:
+Offer three input modes:
 
 - **Package local prototype**: build and publish the supplied local prototype to an internal GitHub repository and GitHub Pages.
 - **Register Figma prototype**: ask for a Figma URL, validate it, and register it directly without creating a GitHub Pages repository. A source repository link is not applicable unless the user supplies one separately.
 - **Register existing GitHub Pages prototype**: ask for the live GitHub Pages URL and its source repository URL, validate both, and register them without rebuilding or creating a repository.
-- **Add a new prototype version**: when the matching registry directory already exists, reuse it, archive its current root contents, and replace the root README and screenshot with the new version.
 
 Support the Figma mode through the shortcut command `/publish-prototype-figma`. The command must ask for the Figma URL first, then continue with the same title, category, description, product, thumbnail, and final-confirmation questions.
 
@@ -36,7 +35,9 @@ Before any GitHub mutation, inspect the input locally and use the structured ask
 4. **Description**: suggest one short, factual sentence based on the visible prototype and local documentation, then let the user replace it.
 5. **Product**: offer the exact values from `resources/products.md` and require one selection.
 
-Before creating a new registry directory, inspect `canonical/design-prototypes` for the exact `<product>/<normalized-prototype-title>` directory. If it exists, select the new-version mode instead of creating a duplicate directory. For a new version, confirm the existing directory, archive date, new thumbnail, and registry pull request. For local prototypes, show the normalized repository name and ask for a single final confirmation covering repository creation, pushing the prototype, enabling Pages, and opening the registry pull request. For Figma prototypes, confirm the registry directory, thumbnail, and registry pull request without promising a prototype repository or Pages URL. For an existing GitHub Pages prototype, confirm the supplied Pages URL, source repository URL, thumbnail, registry directory, and registry pull request without creating or changing the source repository.
+For local prototypes, show the normalized repository name and ask for a single final confirmation covering repository creation, pushing the prototype, enabling Pages, and opening the registry pull request. For Figma prototypes, confirm the registry directory, thumbnail, and registry pull request without promising a prototype repository or Pages URL. For an existing GitHub Pages prototype, confirm the supplied Pages URL, source repository URL, thumbnail, registry directory, and registry pull request without creating or changing the source repository.
+
+When preparing the registry pull request, inspect `canonical/design-prototypes` for the exact `<product>/<normalized-prototype-title>` directory. If it does not exist, create a new entry. If it exists, use the structured ask tool to ask whether the incoming prototype is the exact same prototype as the existing entry. If the user answers **yes**, reuse the existing directory and perform the version archive procedure below without asking for any further versioning input. If the user answers **no**, ask for a replacement title, normalize it, and check the registry again; use the new title's directory and repeat the same check if it also exists.
 
 Do not ask for or handle passwords, access tokens, or private keys. Do not continue when the user declines the final confirmation.
 
@@ -135,7 +136,7 @@ For a new entry, create:
 
 Use the exact selected product name for the product directory. Use a normalized prototype-name directory and place every thumbnail image directly beside the README. A new prototype directory may contain only `README.md` and its thumbnail image file(s), with no nested image directory or other files.
 
-For an existing prototype directory, create a new version in place:
+For an existing prototype directory confirmed by the user as the exact same prototype, create a new version in place:
 
 1. Confirm that the directory name matches the selected product and normalized prototype title.
 2. Create `archive/<YYYY-MM-DD>/` using the current local date in ISO format. If that archive directory already exists, stop and ask the user rather than overwriting an earlier version.
@@ -187,7 +188,7 @@ Before opening the catalog PR, verify:
 - `prototype-build/site/index.html` exists for a web preview before publication, unless the input is an existing GitHub Pages URL or a Figma URL.
 - The thumbnail is WebP and 1280x720.
 - For a new entry, every changed registry path follows exactly `<product>/<prototype-title>/<README-or-thumbnail>` and matches the confirmed product and title.
-- For a new version, every changed archive path is exactly `<product>/<prototype-title>/archive/<YYYY-MM-DD>/<README-or-thumbnail>`, and the archive date does not already exist before the update.
+- For a new version of a confirmedly existing-prototype , every changed archive path is exactly `<product>/<prototype-title>/archive/<YYYY-MM-DD>/<README-or-thumbnail>`, and the archive date does not already exist before the update.
 - The registry README contains only same-directory thumbnail references, one allowed actual-prototype URL, and an optional source-repository URL.
 - The registry prototype directory contains only its current README, current thumbnail image file(s), and the permitted dated archive directory for a version update.
 - No obvious secrets or dependency directories are staged.
