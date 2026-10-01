@@ -21,6 +21,8 @@ Offer two input modes:
 
 - **Package local prototype**: build and publish the supplied local prototype to an internal GitHub repository and GitHub Pages.
 - **Register Figma prototype**: ask for a Figma URL, validate it, and register it directly without creating a GitHub Pages repository. A source repository link is not applicable unless the user supplies one separately.
+- **Register existing GitHub Pages prototype**: ask for the live GitHub Pages URL and its source repository URL, validate both, and register them without rebuilding or creating a repository.
+- **Add a new prototype version**: when the matching registry directory already exists, reuse it, archive its current root contents, and replace the root README and screenshot with the new version.
 
 Support the Figma mode through the shortcut command `/publish-prototype-figma`. The command must ask for the Figma URL first, then continue with the same title, category, description, product, thumbnail, and final-confirmation questions.
 
@@ -28,12 +30,13 @@ Support the Figma mode through the shortcut command `/publish-prototype-figma`. 
 
 Before any GitHub mutation, inspect the input locally and use the structured ask tool to request the following, one field at a time. Do not replace these questions with guessed metadata:
 
-1. **Title**: suggest a concise title from the folder name, package metadata, HTML title, or README, then let the user replace it.
-2. **Category**: suggest one of `exploratory`, `component`, or `handover` based on the artifact, then let the user choose or enter a value. Reject values outside this exact set.
-3. **Description**: suggest one short, factual sentence based on the visible prototype and local documentation, then let the user replace it.
-4. **Product**: offer the exact values from `resources/products.md` and require one selection.
+1. **Input mode and links**: if the prototype is already published on GitHub Pages, ask for the live Pages URL first and then require the source repository URL. Validate that the live URL host ends in `.github.io` and that the source URL is a GitHub repository URL. Do not infer the source repository from the Pages hostname.
+2. **Title**: suggest a concise title from the folder name, package metadata, HTML title, README, or existing prototype URL, then let the user replace it.
+3. **Category**: suggest one of `exploratory`, `component`, or `handover` based on the artifact, then let the user choose or enter a value. Reject values outside this exact set.
+4. **Description**: suggest one short, factual sentence based on the visible prototype and local documentation, then let the user replace it.
+5. **Product**: offer the exact values from `resources/products.md` and require one selection.
 
-For local prototypes, show the normalized repository name and ask for a single final confirmation covering repository creation, pushing the prototype, enabling Pages, and opening the registry pull request. For Figma prototypes, confirm the registry directory, thumbnail, and registry pull request without promising a prototype repository or Pages URL.
+Before creating a new registry directory, inspect `canonical/design-prototypes` for the exact `<product>/<normalized-prototype-title>` directory. If it exists, select the new-version mode instead of creating a duplicate directory. For a new version, confirm the existing directory, archive date, new thumbnail, and registry pull request. For local prototypes, show the normalized repository name and ask for a single final confirmation covering repository creation, pushing the prototype, enabling Pages, and opening the registry pull request. For Figma prototypes, confirm the registry directory, thumbnail, and registry pull request without promising a prototype repository or Pages URL. For an existing GitHub Pages prototype, confirm the supplied Pages URL, source repository URL, thumbnail, registry directory, and registry pull request without creating or changing the source repository.
 
 Do not ask for or handle passwords, access tokens, or private keys. Do not continue when the user declines the final confirmation.
 
@@ -123,14 +126,41 @@ Enable Pages with `gh api` using the workflow build type. Treat an already-enabl
 
 Clone or fetch `canonical/design-prototypes` into a separate temporary directory. The central registry contains directories only. Do not add a catalog-wide README, index, data file, generated site, or other registry structure.
 
-Create the entry at:
+For a new entry, create:
 
 ```text
 <product-name>/<prototype-name>/README.md
 <product-name>/<prototype-name>/<thumbnail-file>.<webp|png|jpg>
 ```
 
-Use the exact selected product name for the product directory. Use a normalized prototype-name directory and place every thumbnail image directly beside the README. The prototype directory may contain only `README.md` and its thumbnail image file(s), with no nested image directory or other files.
+Use the exact selected product name for the product directory. Use a normalized prototype-name directory and place every thumbnail image directly beside the README. A new prototype directory may contain only `README.md` and its thumbnail image file(s), with no nested image directory or other files.
+
+For an existing prototype directory, create a new version in place:
+
+1. Confirm that the directory name matches the selected product and normalized prototype title.
+2. Create `archive/<YYYY-MM-DD>/` using the current local date in ISO format. If that archive directory already exists, stop and ask the user rather than overwriting an earlier version.
+3. Move every existing root file in the prototype directory, including the previous `README.md` and thumbnail image file(s), into that dated archive directory. Do not move an existing `archive/` directory into itself.
+4. Create a new root `README.md` and a new root thumbnail screenshot. The root is the current version; prior versions remain under the dated archive directory.
+
+The archive is the only permitted nested directory in a versioned prototype directory. An archive directory may contain the previous README and thumbnail image file(s), but no additional generated or unrelated files.
+
+Before staging the registry change, enforce one of these path schemas for every changed path:
+
+```text
+<product>/<prototype-title>/README.md
+<product>/<prototype-title>/<thumbnail-file>
+```
+
+For a new version, use this additional schema:
+
+```text
+<product>/<prototype-title>/README.md
+<product>/<prototype-title>/<thumbnail-file>
+<product>/<prototype-title>/archive/<YYYY-MM-DD>/README.md
+<product>/<prototype-title>/archive/<YYYY-MM-DD>/<thumbnail-file>
+```
+
+The path must contain exactly two directories below the repository root for a new entry: the first directory must equal the selected product name from `resources/products.md`, and the second must be the normalized slug of the confirmed prototype title. For a new version, the only additional path components allowed are `archive/<YYYY-MM-DD>/`. Reject paths with a missing level, an extra level, an invalid ISO date, a different product name, a different prototype title, or files outside that one prototype directory. The prototype directory must contain a current root `README.md`, one current root thumbnail image, and, for a version update, one new dated archive containing the previous root content while preserving any older dated archives.
 
 The README must contain only:
 
@@ -143,7 +173,7 @@ The actual-prototype link must be exactly one of these kinds:
 - A Figma URL (`https://www.figma.com/...`).
 - A Penpot URL (`https://penpot.app/...`).
 
-When a source repository exists, add a second link labeled as the source repository. This optional link must point to the repository hosting the prototype source. It is not a substitute for the actual-prototype link. For a local publication this is the newly created GitHub repository; for a Figma prototype omit it unless the user supplies a source repository.
+When a source repository exists, add a second link labeled as the source repository. This optional link must point to the repository hosting the prototype source. It is not a substitute for the actual-prototype link. For a local publication this is the newly created GitHub repository; for a Figma prototype omit it unless the user supplies a source repository; for an existing GitHub Pages prototype it is required and must be the repository supplied by the user.
 
 Reject all other actual-prototype link types, including ordinary repository URLs, arbitrary websites, local paths, and source archives. Do not duplicate the title, category, product, description, or other metadata in the registry README.
 
@@ -154,12 +184,15 @@ Use a descriptive branch such as `publish/<repo-name>`, commit only the new prod
 Before opening the catalog PR, verify:
 
 - The prototype build or packaging command succeeded.
-- `prototype-build/site/index.html` exists for a web preview before publication.
+- `prototype-build/site/index.html` exists for a web preview before publication, unless the input is an existing GitHub Pages URL or a Figma URL.
 - The thumbnail is WebP and 1280x720.
+- For a new entry, every changed registry path follows exactly `<product>/<prototype-title>/<README-or-thumbnail>` and matches the confirmed product and title.
+- For a new version, every changed archive path is exactly `<product>/<prototype-title>/archive/<YYYY-MM-DD>/<README-or-thumbnail>`, and the archive date does not already exist before the update.
 - The registry README contains only same-directory thumbnail references, one allowed actual-prototype URL, and an optional source-repository URL.
-- The registry prototype directory contains only its README and thumbnail image file(s).
+- The registry prototype directory contains only its current README, current thumbnail image file(s), and the permitted dated archive directory for a version update.
 - No obvious secrets or dependency directories are staged.
 - The Pages workflow completed successfully.
 - The registry pull request contains only the intended product/prototype directory.
+- For an existing GitHub Pages input, the live URL is a valid `.github.io` URL and the required source URL is a valid GitHub repository URL.
 
 Report the prototype repository, Pages URL, catalog pull request URL, selected product, title, category, and description. Clearly identify any fallback packaging, skipped check, or manual action still required.
