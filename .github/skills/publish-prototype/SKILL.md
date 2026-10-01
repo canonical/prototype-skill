@@ -10,10 +10,19 @@ Publish one prototype as an internal GitHub repository and add it to the shared 
 ## Required tools and inputs
 
 - Use the `gh` CLI for GitHub operations. Do not use GitHub tokens directly or replace `gh` with a custom API client.
-- Use the user's local file or folder as the prototype input. Accept `.html`, `.tar`, `.tar.gz`, `.tgz`, `.zip`, JavaScript applications, and VS Code plugin projects.
+- Accept either a local file or folder (`.html`, `.tar`, `.tar.gz`, `.tgz`, `.zip`, JavaScript application, or VS Code plugin) or a Figma URL.
 - Read the product choices from `resources/products.md` in the workspace. Present only those exact product names; do not silently invent or alter a product.
 - The prototype repository owner is `canonical`.
 - The catalog repository is `canonical/design-prototypes`.
+
+## Prototype input modes
+
+Offer two input modes:
+
+- **Package local prototype**: build and publish the supplied local prototype to an internal GitHub repository and GitHub Pages.
+- **Register Figma prototype**: ask for a Figma URL, validate it, and register it directly without creating a GitHub Pages repository. A source repository link is not applicable unless the user supplies one separately.
+
+Support the Figma mode through the shortcut command `/publish-prototype-figma`. The command must ask for the Figma URL first, then continue with the same title, category, description, product, thumbnail, and final-confirmation questions.
 
 ## Interaction contract
 
@@ -24,7 +33,7 @@ Before any GitHub mutation, inspect the input locally and use the structured ask
 3. **Description**: suggest one short, factual sentence based on the visible prototype and local documentation, then let the user replace it.
 4. **Product**: offer the exact values from `resources/products.md` and require one selection.
 
-Then show the normalized repository name and ask for a single final confirmation covering repository creation, pushing the prototype, enabling Pages, and opening the catalog pull request.
+For local prototypes, show the normalized repository name and ask for a single final confirmation covering repository creation, pushing the prototype, enabling Pages, and opening the registry pull request. For Figma prototypes, confirm the registry directory, thumbnail, and registry pull request without promising a prototype repository or Pages URL.
 
 Do not ask for or handle passwords, access tokens, or private keys. Do not continue when the user declines the final confirmation.
 
@@ -62,22 +71,40 @@ Use the current local date in ISO format. Collapse repeated separators and remov
 
 ## Local package layout
 
-Prepare a temporary staging directory, leaving the user's source untouched. Preserve the original source under `source/` where practical, excluding dependencies, caches, and secrets. Create a Pages-ready site under `site/`.
+Create `prototype-build/` in the current working directory before packaging. Use it as the trusted temporary workspace for extraction, builds, the local preview server, browser automation, screenshots, and staging. Leave the user's source untouched. Preserve the original source under `prototype-build/source/` where practical, excluding dependencies, caches, and secrets. Create the Pages-ready site under `prototype-build/site/`.
 
-For a static HTML archive, extract it and make its existing entry point available as `site/index.html`. For a JavaScript app, install only the dependencies needed for the confirmed build, run the confirmed build, and copy the resulting output into `site/`. Rewrite asset paths only when required for a project-hosted Pages path. Do not claim a build succeeded unless the command exits successfully.
+Treat only this explicitly created directory as the trusted build and browser workspace. Do not browse, execute, or stage files from the user's wider workspace unless they are part of the selected prototype. Keep `prototype-build/` until publication and catalog validation finish; remove it after successful completion. If any step fails, keep it and report its path for debugging.
+
+For a static HTML archive, extract it into the build workspace and make its existing entry point available as `prototype-build/site/index.html`. For a JavaScript app, install only the dependencies needed for the confirmed build, run the confirmed build, and copy the resulting output into `prototype-build/site/`. Rewrite asset paths only when required for a project-hosted Pages path. Do not claim a build succeeded unless the command exits successfully.
 
 For a VS Code plugin or another non-web prototype, first look for an existing web preview or export. If none is available, suggest a static screenshot gallery containing the generated or supplied thumbnail, any additional screenshots, the preserved source artifact, and concise local-run instructions. Ask the user to confirm that fallback before using it.
 
-## Thumbnail
+## Thumbnail and browser capture
 
-Generate a preview thumbnail from the local preview by default. If that is not reliable, suggest a screenshot or supplied image and ask the user to confirm it. Normalize the catalog thumbnail to WebP, 1280x720, and use a stable filename such as `prototype.webp`. If image conversion is unavailable, stop and explain the missing prerequisite rather than silently changing the contract.
+Generate the thumbnail from a browser-rendered local preview by default. Start the preview from `prototype-build/` using, in order:
+
+1. The confirmed project script or detected framework preview command.
+2. A confirmed framework CLI command.
+3. A static HTTP server, such as `python -m http.server`, for a ready-to-serve site.
+
+Bind the server to localhost, use a free port, record the process ID, and stop it after capture. Never expose the local preview on a public interface. Wait for the page and its required assets to become ready before capturing it.
+
+Support these capture methods, detecting whether each is available:
+
+- **Playwright**: preferred for a deterministic desktop viewport and waiting for network or page readiness.
+- **Puppeteer**: use when it is already available in the prototype or local environment.
+- **Chromium or Chrome headless**: use the installed browser executable with an explicit viewport and screenshot output.
+- **VS Code browser tools**: use the available editor browser automation to open the localhost URL and capture the preview.
+- **Manual image fallback**: if no automated method is available or the preview cannot run, ask the user to provide a screenshot and confirm it.
+
+Use one default desktop viewport unless the user requests another state. Save the capture in `prototype-build/`, normalize the catalog thumbnail to WebP at 1280x720, and use a stable filename such as `prototype.webp`. If image conversion is unavailable, stop and explain the missing prerequisite rather than silently changing the contract.
 
 ## Prototype repository
 
 Create the new repository as internal and push the prepared contents directly to its default branch. Prefer the detected default branch rather than assuming `main`:
 
 ```sh
-gh repo create canonical/<repo-name> --internal --source=<staging-dir> --remote=origin --push
+gh repo create canonical/<repo-name> --internal --source=prototype-build --remote=origin --push
 ```
 
 The repository must contain:
@@ -94,30 +121,45 @@ Enable Pages with `gh api` using the workflow build type. Treat an already-enabl
 
 ## Catalog pull request
 
-Clone or fetch `canonical/design-prototypes` into a separate temporary directory. Inspect its existing README and product-directory conventions before editing. Preserve its style and avoid rewriting unrelated content.
+Clone or fetch `canonical/design-prototypes` into a separate temporary directory. The central registry contains directories only. Do not add a catalog-wide README, index, data file, generated site, or other registry structure.
 
-Add one heading-block entry under the selected product directory. The entry must include:
+Create the entry at:
 
-- The WebP thumbnail, copied into the catalog repository.
-- Title.
-- Exact product name.
-- Category.
-- Short description.
-- Link to the prototype repository.
-- Link to the GitHub Pages preview.
+```text
+<product-name>/<prototype-name>/README.md
+<product-name>/<prototype-name>/<thumbnail-file>.<webp|png|jpg>
+```
 
-If the catalog has no applicable structure, use `<product-slug>/README.md` and store thumbnails under `<product-slug>/images/`. Use a descriptive branch such as `publish/<repo-name>`, commit only the new catalog entry and thumbnail, push the branch, and open a pull request with `gh pr create`. Do not merge the pull request.
+Use the exact selected product name for the product directory. Use a normalized prototype-name directory and place every thumbnail image directly beside the README. The prototype directory may contain only `README.md` and its thumbnail image file(s), with no nested image directory or other files.
+
+The README must contain only:
+
+- A Markdown image reference to each thumbnail stored in the same directory.
+- A link to the actual prototype.
+
+The actual-prototype link must be exactly one of these kinds:
+
+- A GitHub Pages URL whose host ends in `.github.io`, including URLs such as `https://<owner>.github.io/<repository>/...` and `https://miniature-adventure-gw8zky1.pages.github.io/`.
+- A Figma URL (`https://www.figma.com/...`).
+- A Penpot URL (`https://penpot.app/...`).
+
+When a source repository exists, add a second link labeled as the source repository. This optional link must point to the repository hosting the prototype source. It is not a substitute for the actual-prototype link. For a local publication this is the newly created GitHub repository; for a Figma prototype omit it unless the user supplies a source repository.
+
+Reject all other actual-prototype link types, including ordinary repository URLs, arbitrary websites, local paths, and source archives. Do not duplicate the title, category, product, description, or other metadata in the registry README.
+
+Use a descriptive branch such as `publish/<repo-name>`, commit only the new product/prototype directory, push the branch, and open a pull request with `gh pr create`. Do not merge the pull request.
 
 ## Validation and reporting
 
 Before opening the catalog PR, verify:
 
 - The prototype build or packaging command succeeded.
-- `site/index.html` exists for a web preview.
+- `prototype-build/site/index.html` exists for a web preview before publication.
 - The thumbnail is WebP and 1280x720.
-- Required README fields are present.
+- The registry README contains only same-directory thumbnail references, one allowed actual-prototype URL, and an optional source-repository URL.
+- The registry prototype directory contains only its README and thumbnail image file(s).
 - No obvious secrets or dependency directories are staged.
 - The Pages workflow completed successfully.
-- The catalog PR contains only the intended entry and thumbnail.
+- The registry pull request contains only the intended product/prototype directory.
 
 Report the prototype repository, Pages URL, catalog pull request URL, selected product, title, category, and description. Clearly identify any fallback packaging, skipped check, or manual action still required.
