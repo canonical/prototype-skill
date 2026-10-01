@@ -10,7 +10,7 @@ Publish one prototype as an internal GitHub repository and add it to the shared 
 ## Required tools and inputs
 
 - Use the `gh` CLI for GitHub operations. Do not use GitHub tokens directly or replace `gh` with a custom API client.
-- Accept either a local file or folder (`.html`, `.tar`, `.tar.gz`, `.tgz`, `.zip`, JavaScript application, or VS Code plugin) or a Figma URL.
+- Accept either a local file or folder (`.html`, `.tar`, `.tar.gz`, `.tgz`, `.zip`, JavaScript or python application, or VS Code plugin) or a Figma URL.
 - Read the product choices from `resources/products.md` in the workspace. Present only those exact product names; do not silently invent or alter a product.
 - The prototype repository owner is `canonical`.
 - The catalog repository is `canonical/design-prototypes`.
