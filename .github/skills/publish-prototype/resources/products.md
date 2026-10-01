@@ -15,5 +15,6 @@ Multipass
 Pro
 Server
 Sites
+User-Science
 Workplace
 Workshop
