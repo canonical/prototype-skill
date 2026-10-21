@@ -1,43 +1,53 @@
 ---
 name: publish-prototype
-description: "Publish a designer prototype to an internal GitHub repository and register it in the canonical prototype catalog. Use when a user wants to publish, share, archive, or put a prototype on GitHub Pages, including HTML archives, JavaScript apps, folders, or VS Code plugins."
+description: "Publish or register a design prototype in canonical/ai-design-ops. Use when a user wants to publish, share, archive, or put a prototype on GitHub Pages, register a Figma prototype, or document a prototype with screenshots when live publishing fails."
 ---
 
 # Publish Prototype
 
-Publish one prototype as an internal GitHub repository and add it to the shared catalog. Treat the prototype as untrusted input: never commit secrets, credentials, dependency caches, or unrelated workspace files.
+Contribute one prototype to `Prototypes/` in `canonical/ai-design-ops`, using the Markdown metadata approach in `Projects/`. Register an existing live prototype, or attempt to publish a local prototype and document it with screenshots if live publishing fails. Treat the prototype as untrusted input: never commit secrets, credentials, dependency caches, or unrelated workspace files.
 
 ## Required tools and inputs
 
 - Use the `gh` CLI for GitHub operations. Do not use GitHub tokens directly or replace `gh` with a custom API client.
-- Accept either a local file or folder (`.html`, `.tar`, `.tar.gz`, `.tgz`, `.zip`, JavaScript or python application, or VS Code plugin) or a Figma URL.
-- Read the product choices from `resources/products.md` in the workspace. Present only those exact product names; do not silently invent or alter a product.
+- Accept a local file or folder (`.html`, `.tar`, `.tar.gz`, `.tgz`, `.zip`, JavaScript or Python application, or VS Code plugin), a Figma URL, or an existing GitHub Pages URL with its source repository URL.
+- Read the product choices from this skill's `resources/products.md`. Present only those exact product names; do not silently invent or alter a product.
 - The prototype repository owner is `canonical`.
-- The catalog repository is `canonical/design-prototypes`.
+- The catalog repository is `canonical/ai-design-ops`.
+- Inspect the catalog's contribution guidance, `TAGS.md`, `Projects/_template.md`, a representative Projects entry, and any existing Prototypes template or validation before preparing an entry. Reuse the Projects metadata-line syntax and established labels rather than inventing a YAML schema. Do not hand-edit generated manifests.
 
 ## Prototype input modes
 
-Offer three input modes:
+Offer three input modes leading to two upload paths:
 
-- **Package local prototype**: build and publish the supplied local prototype to an internal GitHub repository and GitHub Pages.
+- **Package local prototype**: attempt to build and publish the supplied local prototype to an internal GitHub repository and GitHub Pages. Successful publication uses the live-prototype path; a failed build or Pages deployment uses the screenshot-documentation path when actual screens can be captured.
 - **Register Figma prototype**: ask for a Figma URL, validate it, and register it directly without creating a GitHub Pages repository. A source repository link is not applicable unless the user supplies one separately.
 - **Register existing GitHub Pages prototype**: ask for the live GitHub Pages URL and its source repository URL, validate both, and register them without rebuilding or creating a repository.
 
-Support the Figma mode through the shortcut command `/publish-prototype-figma`. The command must ask for the Figma URL first, then continue with the same title, category, description, product, thumbnail, and final-confirmation questions.
+Support the Figma mode through the shortcut command `/publish-prototype-figma`. Ask for the Figma URL first, then continue with the title, category, card summary, product, metadata, thumbnail, and final-confirmation questions. Do not ask for a long description.
+
+### Upload path 1: live prototype
+
+For a prototype hosted on Figma or GitHub Pages, contribute metadata, the selected one-line card summary, a thumbnail, and the live link. This also applies after successfully publishing a local prototype to Pages. Do not ask for a long description or require a screen-by-screen write-up. Use only a short body containing the summary and relevant links.
+
+### Upload path 2: screenshot documentation
+
+If there is no existing externally hosted prototype and the attempt to generate or deploy a working GitHub Pages version fails, capture a set of actual screenshots and write an extensive description of the screens and flows between them. Upload every selected screenshot and reference each in the main body of `Prototypes/<slug>.md`; that body is the content intended for the prototype sub-page. Follow the screenshot-documentation procedure below. Do not claim that the prototype is live.
 
 ## Interaction contract
 
 Before any GitHub mutation, inspect the input locally and use the structured ask tool to request the following, one field at a time. Do not replace these questions with guessed metadata:
 
 1. **Input mode and links**: if the prototype is already published on GitHub Pages, ask for the live Pages URL first and then require the source repository URL. Validate that the live URL host ends in `.github.io` and that the source URL is a GitHub repository URL. Do not infer the source repository from the Pages hostname.
-2. **Title**: suggest a concise title from the folder name, package metadata, HTML title, README, or existing prototype URL, then let the user replace it.
+2. **Title**: suggest a concise title from the folder name, package metadata, HTML title, README, or existing prototype URL, then let the user replace it. The product need not appear in the title because it is recorded in metadata.
 3. **Category**: suggest one of `exploratory`, `component`, or `handover` based on the artifact, then let the user choose or enter a value. Reject values outside this exact set.
-4. **Description**: suggest one short, factual sentence based on the visible prototype and local documentation, then let the user replace it.
+4. **One-line card summary**: generate exactly two distinct proposals grounded in the visible prototype and its documentation. Both must be concise, precise, and adroit, without promotional claims or unnecessary repetition of the title or product. Proposal A emphasizes the application context and the goal of the prototype. Proposal B emphasizes the main subject shown in the prototype: the specific interface, workflow, or interaction on display. Do not offer two paraphrases of the same emphasis. Use the structured ask tool to present both complete proposals as selectable options and allow freeform input for a custom one-line summary. Preserve the user's chosen or custom wording; never silently choose a proposal. This is a card summary, not a request for a long description.
 5. **Product**: offer the exact values from `resources/products.md` and require one selection.
+6. **Shared metadata**: confirm the owner and any required Projects-style fields such as Focus, Output, Medium, Sensitivity, and Difficulty using the catalog's current taxonomy. Suggest appropriate existing values, but do not equate the prototype category with a Projects tag or guess the data sensitivity. Record Archived and Date added according to the catalog convention.
 
-For local prototypes, show the normalized repository name and ask for a single final confirmation covering repository creation, pushing the prototype, enabling Pages, and opening the registry pull request. For Figma prototypes, confirm the registry directory, thumbnail, and registry pull request without promising a prototype repository or Pages URL. For an existing GitHub Pages prototype, confirm the supplied Pages URL, source repository URL, thumbnail, registry directory, and registry pull request without creating or changing the source repository.
+For local prototypes, show the normalized repository name and ask for final confirmation covering repository creation, pushing the prototype, enabling Pages, and opening the catalog pull request. For Figma prototypes, confirm the entry path, thumbnail, and catalog pull request without promising a prototype repository or Pages URL. For an existing GitHub Pages prototype, confirm the supplied Pages URL, source repository URL, thumbnail, entry path, and catalog pull request without creating or changing the source repository. Include the selected summary and metadata in each confirmation. If live publishing fails, obtain a new confirmation for the screenshot-documentation outcome after showing its screenshots and generated body; the earlier approval must not silently authorize a different outcome.
 
-When preparing the registry pull request, inspect `canonical/design-prototypes` for the exact `<product>/<normalized-prototype-title>` directory. If it does not exist, create a new entry. If it exists, use the structured ask tool to ask whether the incoming prototype is the exact same prototype as the existing entry. If the user answers **yes**, reuse the existing directory and perform the version archive procedure below without asking for any further versioning input. If the user answers **no**, ask for a replacement title, normalize it, and check the registry again; use the new title's directory and repeat the same check if it also exists.
+When preparing the catalog pull request, inspect `Prototypes/<slug>.md` and `Prototypes/<slug>/`. If either exists, use the structured ask tool to ask whether this is the exact same prototype. If yes, update the existing entry and assets in place, preserving Date added and relying on Git history for earlier versions. If no, ask for a replacement title, normalize it, and repeat the collision check. Do not overwrite unrelated assets or create duplicate entries.
 
 Do not ask for or handle passwords, access tokens, or private keys. Do not continue when the user declines the final confirmation.
 
@@ -51,7 +61,7 @@ gh auth status
 gh api user --jq .login
 ```
 
-If `gh` is missing, explain how to install it using the operating system's supported package manager and stop. If it is not authenticated, guide the user through `gh auth login` and wait for them to complete it. Re-run `gh auth status` and verify that the account can access the `canonical` organization before continuing.
+If `gh` is missing, explain how to install it using the operating system's supported package manager and stop. If it is not authenticated, guide the user through `gh auth login` and wait for them to complete it. Re-run `gh auth status` and verify access to `canonical/ai-design-ops`. Before creating a prototype repository, also verify permission to create internal repositories in `canonical`. Authentication, signing, permission, or catalog validation failures are blockers, not reasons to bypass safeguards through the screenshot path.
 
 Inspect the input without executing unknown install or post-install scripts. Identify:
 
@@ -63,7 +73,43 @@ Inspect the input without executing unknown install or post-install scripts. Ide
 
 If a build command is ambiguous, suggest the detected command and ask the user to confirm it. Never guess a destructive command. Do not commit `node_modules`, virtual environments, package-manager caches, `.git`, credentials, or files outside the selected prototype.
 
+## Signed commits
+
+Every commit created by this workflow must be cryptographically signed. Before creating any commit, verify the user's Git configuration and signing capability:
+
+```sh
+git config --get user.name
+git config --get user.email
+git config --get commit.gpgsign
+git config --get gpg.format
+git config --get user.signingkey
+```
+
+Prefer SSH signing when it is already configured, otherwise use the user's configured GPG signing key. Do not generate, request, print, or handle private keys, passphrases, or tokens. If no usable signing configuration exists, explain how the user can configure Git signing locally and stop before creating a commit.
+
+Set signing explicitly for workflow commits rather than relying only on global configuration:
+
+```sh
+git -c commit.gpgsign=true commit -S -m "<message>"
+```
+
+After each commit and before pushing, verify the local signature:
+
+```sh
+git verify-commit HEAD
+```
+
+After pushing, verify that GitHub recognizes the signature:
+
+```sh
+gh api repos/<owner>/<repo>/commits/<sha> --jq '.commit.verification | {verified, reason}'
+```
+
+Do not push or open a pull request if local verification fails. Do not continue after pushing if GitHub verification is false, missing, or has a reason other than a valid signature. Never bypass signing with `--no-gpg-sign` or an equivalent option.
+
 ## Naming
+
+Normalize the confirmed title to a lowercase hyphenated `<slug>` for `Prototypes/<slug>.md` and `Prototypes/<slug>/`. Do not add the product to the title or catalog slug merely to repeat metadata. Reject empty slugs and path traversal.
 
 Create a lowercase hyphenated slug from the exact selected product, title, and category:
 
@@ -81,7 +127,7 @@ Treat only this explicitly created directory as the trusted build and browser wo
 
 For a static HTML archive, extract it into the build workspace and make its existing entry point available as `prototype-build/site/index.html`. For a JavaScript app, install only the dependencies needed for the confirmed build, run the confirmed build, and copy the resulting output into `prototype-build/site/`. Rewrite asset paths only when required for a project-hosted Pages path. Do not claim a build succeeded unless the command exits successfully.
 
-For a VS Code plugin or another non-web prototype, first look for an existing web preview or export. If none is available, suggest a static screenshot gallery containing the generated or supplied thumbnail, any additional screenshots, the preserved source artifact, and concise local-run instructions. Ask the user to confirm that fallback before using it.
+For a VS Code plugin or another non-web prototype, first look for an existing web preview or export. If a working Pages version cannot be generated, use screenshot documentation of the actual application instead of manufacturing an unrelated gallery deployment. Do not upload source artifacts into the catalog.
 
 ## Thumbnail and browser capture
 
@@ -101,7 +147,25 @@ Support these capture methods, detecting whether each is available:
 - **VS Code browser tools**: use the available editor browser automation to open the localhost URL and capture the preview.
 - **Manual image fallback**: if no automated method is available or the preview cannot run, ask the user to provide a screenshot and confirm it.
 
-Use one default desktop viewport unless the user requests another state. Save the capture in `prototype-build/`, normalize the catalog thumbnail to WebP at 1280x720, and use a stable filename such as `prototype.webp`. If image conversion is unavailable, stop and explain the missing prerequisite rather than silently changing the contract.
+Use one default desktop viewport unless the user requests another state. For an existing live prototype, capture the supplied URL when accessible, or ask for a screenshot if access requires credentials. Save captures in `prototype-build/`, normalize the catalog thumbnail to WebP at 1280x720, and name it `thumbnail.webp`. Its catalog path is always `Prototypes/<slug>/thumbnail.webp`. If image conversion is unavailable, stop and explain the missing prerequisite rather than silently changing the contract.
+
+## Screenshot-documentation procedure
+
+Record which build or deployment step failed and why. A Pages failure does not necessarily prevent a local preview: use a safely runnable local application, development server, or the native application to capture real screens. If no actual interface can be opened, ask the user for a set of screenshots; never fabricate screenshots or describe unseen behavior. If neither capture nor supplied screenshots is possible, stop and report the blocker.
+
+Inspect the available screens and exercise the principal flows, including meaningful intermediate, completed, empty, and error states where they are present. Capture a coherent set covering the different screens and the transitions needed to understand the prototype, rather than multiple cosmetic variants of one screen. Exclude credentials, personal data, and unrelated desktop content. Choose a representative capture for the 1280x720 thumbnail; keep additional screenshots legible at their natural aspect ratios.
+
+Store every selected full screenshot at `Prototypes/<slug>/screenshots/<screen-slug>.webp`, using descriptive, stable names. Upload all screenshots selected for the documentation, not just the thumbnail. Keep temporary or rejected captures out of the pull request.
+
+Generate the extensive description from observed behavior and available documentation; do not ask the user to write it. The Markdown body must contain:
+
+- The selected one-line summary as the first prose paragraph after the metadata line.
+- An overview of the application context, intended goal, and scope of the captured prototype.
+- A section for each captured screen or meaningful state, with an informative heading, a relative Markdown image reference, and a detailed description of what is shown, the available actions, and the purpose of that screen.
+- A flows section explaining the entry point, ordered actions, transitions between the named screens, decisions or branches, and outcomes. Link to the corresponding screen sections where useful.
+- Known limitations, unimplemented or unverified transitions, and a factual note that live publishing failed. Distinguish directly observed interactions from intended behavior described by the source documentation.
+
+Use image references relative to `Prototypes/<slug>.md`, such as `![Review screen](<slug>/screenshots/review.webp)`. Every uploaded screenshot must be referenced in the body, and every image reference must resolve. Show the generated documentation and capture set for confirmation or correction before contributing them. The catalog website, not a newly invented Pages URL, provides the eventual documentation sub-page.
 
 ## Prototype repository
 
@@ -115,85 +179,75 @@ The repository must contain:
 
 - `site/`, containing the Pages-ready output.
 - `source/`, when source preservation is applicable.
-- `prototype.webp`, the normalized preview used by the catalog when available.
-- `README.md`, containing the title, exact product, category, description, source type, build/publish notes, repository link, and Pages link.
+- `thumbnail.webp`, the normalized preview used by the catalog when available.
+- `README.md`, containing the title, exact product, category, selected one-line summary, source type, build/publish notes, repository link, and Pages link. A long description is not required for this live-prototype path.
 - `.github/workflows/pages.yml`, publishing `site/` through GitHub Pages using the official Pages actions.
 
 The workflow should use `actions/configure-pages`, `actions/upload-pages-artifact`, and `actions/deploy-pages`, with the required Pages and id-token permissions. It must upload only `site/` and must not install dependencies during deployment.
 
 Enable Pages with `gh api` using the workflow build type. Treat an already-enabled Pages configuration as success, but fail on other API errors. Wait for the first workflow run to complete and verify its conclusion before reporting a Pages URL.
 
+If the build or Pages deployment fails and no live prototype exists, record the failure and continue with screenshot documentation only after the required confirmation. Report any repository already created and its actual deployment status; do not delete remote resources without approval or present a failed deployment URL as working.
+
 ## Catalog pull request
 
-Clone or fetch `canonical/design-prototypes` into a separate temporary directory. The central registry contains directories only. Do not add a catalog-wide README, index, data file, generated site, or other registry structure.
+Clone or fetch `canonical/ai-design-ops` into a separate temporary directory. Follow its contribution guidance and inspect the current Projects metadata conventions and any Prototypes-specific template. Create `Prototypes/` if it does not exist. Do not change Projects entries, generated manifests, website code, taxonomy files, or unrelated catalog content as part of a publication.
 
-For a new entry, create:
-
-```text
-<product-name>/<prototype-name>/README.md
-<product-name>/<prototype-name>/<thumbnail-file>.<webp|png|jpg>
-```
-
-Use the exact selected product name for the product directory. Use a normalized prototype-name directory and place every thumbnail image directly beside the README. A new prototype directory may contain only `README.md` and its thumbnail image file(s), with no nested image directory or other files.
-
-For an existing prototype directory confirmed by the user as the exact same prototype, create a new version in place:
-
-1. Confirm that the directory name matches the selected product and normalized prototype title.
-2. Create `archive/<YYYY-MM-DD>/` using the current local date in ISO format. If that archive directory already exists, stop and ask the user rather than overwriting an earlier version.
-3. Move every existing root file in the prototype directory, including the previous `README.md` and thumbnail image file(s), into that dated archive directory. Do not move an existing `archive/` directory into itself.
-4. Create a new root `README.md` and a new root thumbnail screenshot. The root is the current version; prior versions remain under the dated archive directory.
-
-The archive is the only permitted nested directory in a versioned prototype directory. An archive directory may contain the previous README and thumbnail image file(s), but no additional generated or unrelated files.
-
-Before staging the registry change, enforce one of these path schemas for every changed path:
+For either upload path, create:
 
 ```text
-<product>/<prototype-title>/README.md
-<product>/<prototype-title>/<thumbnail-file>
+Prototypes/<slug>.md
+Prototypes/<slug>/thumbnail.webp
 ```
 
-For a new version, use this additional schema:
+For screenshot documentation, also create:
 
 ```text
-<product>/<prototype-title>/README.md
-<product>/<prototype-title>/<thumbnail-file>
-<product>/<prototype-title>/archive/<YYYY-MM-DD>/README.md
-<product>/<prototype-title>/archive/<YYYY-MM-DD>/<thumbnail-file>
+Prototypes/<slug>/screenshots/<screen-slug>.webp
 ```
 
-The path must contain exactly two directories below the repository root for a new entry: the first directory must equal the selected product name from `resources/products.md`, and the second must be the normalized slug of the confirmed prototype title. For a new version, the only additional path components allowed are `archive/<YYYY-MM-DD>/`. Reject paths with a missing level, an extra level, an invalid ISO date, a different product name, a different prototype title, or files outside that one prototype directory. The prototype directory must contain a current root `README.md`, one current root thumbnail image, and, for a version update, one new dated archive containing the previous root content while preserving any older dated archives.
+Use the confirmed title slug consistently for the Markdown filename, asset directory, and relative image references. Product is metadata, not a directory level. Never replace this layout with `Prototypes/<slug>/README.md` or the old product/title layout. Keep builds, source archives, dependency files, and temporary captures outside the catalog.
 
-The README must contain only:
+### Entry metadata and body
 
-- A Markdown image reference to each thumbnail stored in the same directory.
-- A link to the actual prototype.
+Use a level-one heading containing the confirmed title, followed by a Projects-style metadata line and then the selected one-line summary as the first prose paragraph. Match the catalog's existing bold-label syntax and field separators. Prefer an existing Prototypes template; otherwise extend the Projects metadata approach with these prototype-specific fields:
 
-The actual-prototype link must be exactly one of these kinds:
+- **Product**: the exact selected product.
+- **Category**: `exploratory`, `component`, or `handover`.
+- **Thumbnail**: `<slug>/thumbnail.webp`, relative to the entry file.
+- **Source repository**: the actual GitHub source repository URL, only when one exists.
 
-- A GitHub Pages URL whose host ends in `.github.io`, including URLs such as `https://<owner>.github.io/<repository>/...` and `https://miniature-adventure-gw8zky1.pages.github.io/`.
-- A Figma URL (`https://www.figma.com/...`).
-- A Penpot URL (`https://penpot.app/...`).
+Reuse the shared fields Focus, Output, Medium, Sensitivity, Difficulty, Archived, Owner, Link, and Date added with the labels and allowed values established by the target repository. Do not silently add new taxonomy values. Date added uses an ISO date and remains unchanged for an update. Store the selected summary once as the opening paragraph unless an existing Prototypes template explicitly defines a summary metadata field; in that case keep the field and opening paragraph identical.
 
-When a source repository exists, add a second link labeled as the source repository. This optional link must point to the repository hosting the prototype source. It is not a substitute for the actual-prototype link. For a local publication this is the newly created GitHub repository; for a Figma prototype omit it unless the user supplies a source repository; for an existing GitHub Pages prototype it is required and must be the repository supplied by the user.
+For live entries, Link must be the actual prototype: an HTTPS URL with a parsed hostname ending in `.github.io`, or a Figma URL with hostname `figma.com` or `www.figma.com`. Validate the host with a URL parser, not substring matching. A source repository is not a substitute for the live link. For an existing GitHub Pages prototype, the separately supplied source repository URL is required; for Figma it is optional. For successful local publication use the new source repository and verified Pages URL.
 
-Reject all other actual-prototype link types, including ordinary repository URLs, arbitrary websites, local paths, and source archives. Do not duplicate the title, category, product, description, or other metadata in the registry README.
+For screenshot documentation, do not invent a live Link or point it at a failed Pages deployment. Omit the live Link when supported by the Prototypes contract, and clearly identify the entry as screenshot documentation in the body. If current validation requires a live link, surface that schema incompatibility for maintainer resolution instead of inserting a fake URL. An existing source repository may still be recorded separately with its actual status.
 
-Use a descriptive branch such as `publish/<repo-name>`, commit only the new product/prototype directory, push the branch, and open a pull request with `gh pr create`. Do not merge the pull request.
+For live entries, keep the body short: the selected summary, a representative image reference such as `![Prototype preview](<slug>/thumbnail.webp)`, and relevant links. Do not ask for or generate a required long description. For screenshot entries, use the extensive generated body specified above and include the thumbnail reference as well as references to every full screenshot.
+
+The Markdown body is intended to be rendered as a prototype detail sub-page. Inspect whether the catalog website actually discovers `Prototypes/*.md`, resolves its relative assets, uses the chosen summary on cards, and renders the full body on detail pages. If support is missing, state the required target-repository integration in the PR and completion report. Do not claim that merging an entry alone makes a card or sub-page available, or silently expand a publication PR into a website implementation.
+
+### Staging and pull request
+
+Allow changed paths only for `Prototypes/<slug>.md`, `Prototypes/<slug>/thumbnail.webp`, and, for screenshot documentation, the documented `Prototypes/<slug>/screenshots/<screen-slug>.webp` assets. Validate additions, updates, deletions, and both sides of renames. Reject path traversal, unrelated slugs, extra directory levels, unreferenced screenshots, and files outside this entry. Preserve unrelated existing files. Updates use Git history rather than creating dated archive directories.
+
+Use a descriptive branch such as `publish/<slug>`, sign the entry commit, verify it locally, push the branch, verify GitHub's signature status, and open a pull request with `gh pr create`. Do not merge the pull request. Include the selected summary, metadata, upload path, any publishing failure, and any missing catalog-site integration in the PR description.
 
 ## Validation and reporting
 
 Before opening the catalog PR, verify:
 
-- The prototype build or packaging command succeeded.
-- `prototype-build/site/index.html` exists for a web preview before publication, unless the input is an existing GitHub Pages URL or a Figma URL.
-- The thumbnail is WebP and 1280x720.
-- For a new entry, every changed registry path follows exactly `<product>/<prototype-title>/<README-or-thumbnail>` and matches the confirmed product and title.
-- For a new version of a confirmedly existing-prototype , every changed archive path is exactly `<product>/<prototype-title>/archive/<YYYY-MM-DD>/<README-or-thumbnail>`, and the archive date does not already exist before the update.
-- The registry README contains only same-directory thumbnail references, one allowed actual-prototype URL, and an optional source-repository URL.
-- The registry prototype directory contains only its current README, current thumbnail image file(s), and the permitted dated archive directory for a version update.
+- The user chose between the two differently focused summary proposals or supplied a custom summary through the structured ask tool, and the approved text is used on the entry.
+- The entry is exactly `Prototypes/<slug>.md`; its thumbnail is exactly `Prototypes/<slug>/thumbnail.webp`, WebP, and 1280x720.
+- Every changed catalog path belongs to the confirmed entry and follows the allowed path schemas; no generated manifest or unrelated catalog file is staged.
+- Metadata matches the target repository's format and taxonomy; product and category match the user's selections.
+- For live entries, the actual prototype URL is an allowed Figma or GitHub Pages URL. Existing Pages entries have the separately supplied GitHub source URL. No long-description question was required.
+- For locally published live entries, the build or packaging command succeeded, `prototype-build/site/index.html` exists, the Pages workflow completed successfully, and the live page loads before reporting success.
+- For screenshot entries, there is no existing live prototype, the Pages generation or deployment failure is recorded, actual screens have been captured or supplied, and the user approved the changed outcome and generated documentation.
+- For screenshot entries, every selected screenshot is uploaded and referenced in the extensive body; each described screen and observed flow is grounded in the captures and inspection. Unverified behavior is labeled, not invented.
+- All relative thumbnail and screenshot references resolve from the Markdown file. No screenshot is blank, unreadable, or exposes sensitive data.
 - No obvious secrets or dependency directories are staged.
-- The Pages workflow completed successfully.
-- The registry pull request contains only the intended product/prototype directory.
-- For an existing GitHub Pages input, the live URL is a valid `.github.io` URL and the required source URL is a valid GitHub repository URL.
+- Every workflow-created commit is signed and passes `git verify-commit` before pushing, and GitHub reports `verified: true` after pushing and before opening the PR.
+- Available catalog validation passes for the touched entry. Schema incompatibilities are reported rather than bypassed; missing website support is explicitly disclosed.
 
-Report the prototype repository, Pages URL, catalog pull request URL, selected product, title, category, and description. Clearly identify any fallback packaging, skipped check, or manual action still required.
+Report the catalog pull request URL, entry path, selected product, title, category, approved one-line summary, and upload path used. Report a prototype repository or live URL only when it actually exists, distinguishing failed deployments from working live prototypes. For screenshot documentation, report the screenshot set and intended catalog sub-page without inventing its URL. Clearly identify any failed publishing step, skipped check, missing website integration, or manual action still required. Retain the build workspace for diagnosis after a publishing failure even when screenshot documentation is contributed successfully.
