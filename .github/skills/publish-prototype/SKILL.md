@@ -69,7 +69,7 @@ gh auth status
 gh api user --jq .login
 ```
 
-If `gh` is missing, explain how to install it using the operating system's supported package manager and stop. If it is not authenticated, guide the user through `gh auth login` and wait for them to complete it. Re-run `gh auth status` and verify access to `canonical/ai-design-ops`. Before creating a prototype repository, also verify permission to create internal repositories in `canonical`. Authentication, signing, permission, or catalog validation failures are blockers, not reasons to bypass safeguards through the screenshot path.
+If `gh` is missing, explain how to install it using the operating system's supported package manager and stop. If it is not authenticated, guide the user through `gh auth login` and wait for them to complete it. Re-run `gh auth status` and verify access to `canonical/ai-design-ops`. Before creating a prototype repository, also verify permission to create internal repositories in `canonical`. Authentication, permission, catalog validation, or configured-key signing failures are blockers, not reasons to bypass safeguards through the screenshot path. A missing signing key is not a blocker; follow the unsigned-commit path below.
 
 Inspect the input without executing unknown install or post-install scripts. Identify:
 
@@ -81,39 +81,59 @@ Inspect the input without executing unknown install or post-install scripts. Ide
 
 If a build command is ambiguous, suggest the detected command and ask the user to confirm it. Never guess a destructive command. Do not commit `node_modules`, virtual environments, package-manager caches, `.git`, credentials, or files outside the selected prototype.
 
-## Signed commits
+## Git identity and optional signing
 
-Every commit created by this workflow must be cryptographically signed. Before creating any commit, verify the user's Git configuration and signing capability:
+### Derive missing Git identity
+
+Do not ask the user to set up a Git username or email. In each workflow-owned repository, preserve any existing nonempty `user.name` and `user.email`. For missing fields, derive the identity from the account already authenticated through `gh`:
 
 ```sh
-git config --get user.name
-git config --get user.email
+gh api user --jq '{login, id, name, email}'
+```
+
+Use the profile name as `user.name`, falling back to the GitHub login when the profile name is empty. For a missing `user.email`, use the account's public profile email if available; otherwise use GitHub's account-linked noreply address `<id>+<login>@users.noreply.github.com`. Do not request additional email-access scopes, invent an address, or prompt the user for identity setup.
+
+Set only the missing fields with `git config --local user.name "<derived-name>"` and `git config --local user.email "<derived-email>"` in the workflow-owned prototype repository and catalog clone as needed. Never change global Git configuration or the user's source repository. Verify that both fields are nonempty before committing. If the authenticated profile cannot be retrieved, report the authentication or API failure rather than asking the user to configure Git identity manually.
+
+### Choose signing automatically
+
+Before creating a commit, inspect the effective signing configuration in that repository:
+
+```sh
 git config --get commit.gpgsign
 git config --get gpg.format
 git config --get user.signingkey
 ```
 
-Prefer SSH signing when it is already configured, otherwise use the user's configured GPG signing key. Do not generate, request, print, or handle private keys, passphrases, or tokens. If no usable signing configuration exists, explain how the user can configure Git signing locally and stop before creating a commit.
+If `user.signingkey` is configured and the key is available through the existing signing setup, sign with that key using the configured format, including SSH or GPG. If no key is configured, skip signing automatically without asking the user to configure a key, even if `commit.gpgsign` is enabled globally. Do not discover or select an unrelated key. Do not generate, request, print, or handle private keys, passphrases, or tokens.
 
-Set signing explicitly for workflow commits rather than relying only on global configuration:
+For a configured key, explicitly enable signing:
 
 ```sh
 git -c commit.gpgsign=true commit -S -m "<message>"
 ```
 
-After each commit and before pushing, verify the local signature:
+If a configured key is unavailable or signing fails, report the concrete failure and stop rather than silently downgrading that commit to unsigned. Never request a passphrase through the ask tool; any required secret must be entered directly by the user into the signing tool.
+
+When no key is configured, explicitly disable signing for that commit only, without changing the user's signing configuration:
+
+```sh
+git -c commit.gpgsign=false commit --no-gpg-sign -m "<message>"
+```
+
+For signed commits only, verify the local signature after committing and before pushing:
 
 ```sh
 git verify-commit HEAD
 ```
 
-After pushing, verify that GitHub recognizes the signature:
+For signed commits only, after pushing verify that GitHub recognizes the signature:
 
 ```sh
 gh api repos/<owner>/<repo>/commits/<sha> --jq '.commit.verification | {verified, reason}'
 ```
 
-Do not push or open a pull request if local verification fails. Do not continue after pushing if GitHub verification is false, missing, or has a reason other than a valid signature. Never bypass signing with `--no-gpg-sign` or an equivalent option.
+For signed commits, do not push if local verification fails, and do not open a pull request if GitHub verification is false, missing, or has a reason other than a valid signature. For intentionally unsigned commits created because no key is configured, skip signature verification and continue with pushing and opening the pull request; unsigned status is expected and is not a failure. Report whether commits were signed or signing was skipped because no key was configured. If the target repository enforces signed commits, report that policy as a blocker rather than attempting to bypass it.
 
 ## Naming
 
@@ -239,7 +259,7 @@ The Markdown body is intended to be rendered as a prototype detail sub-page. Ins
 
 Allow changed paths only for `Prototypes/<slug>.md`, `Prototypes/<slug>/thumbnail.webp`, and, for screenshot documentation, the documented `Prototypes/<slug>/screenshots/<screen-slug>.webp` assets. Validate additions, updates, deletions, and both sides of renames. Reject path traversal, unrelated slugs, extra directory levels, unreferenced screenshots, and files outside this entry. Preserve unrelated existing files. Updates use Git history rather than creating dated archive directories.
 
-Use a descriptive branch such as `publish/<slug>`, sign the entry commit, verify it locally, push the branch, verify GitHub's signature status, and open a pull request with `gh pr create`. Do not merge the pull request. Include the selected summary, metadata, upload path, any publishing failure, and any missing catalog-site integration in the PR description.
+Use a descriptive branch such as `publish/<slug>`, derive any missing Git identity, and create the entry commit using the optional-signing rules above. For signed commits, verify locally before pushing and verify GitHub's signature status after pushing. For commits intentionally unsigned because no key is configured, skip signature checks. Then open a pull request with `gh pr create`. Do not merge the pull request. Include the selected summary, metadata, upload path, any publishing failure, and any missing catalog-site integration in the PR description.
 
 ## Validation and reporting
 
@@ -256,7 +276,8 @@ Before opening the catalog PR, verify:
 - For screenshot entries, every selected screenshot is uploaded and referenced in the extensive body; each described screen and observed flow is grounded in the captures and inspection. Unverified behavior is labeled, not invented.
 - All relative thumbnail and screenshot references resolve from the Markdown file. No screenshot is blank, unreadable, or exposes sensitive data.
 - No obvious secrets or dependency directories are staged.
-- Every workflow-created commit is signed and passes `git verify-commit` before pushing, and GitHub reports `verified: true` after pushing and before opening the PR.
+- Git identity is available for every workflow-created commit. Missing identity fields were derived from the authenticated GitHub account and set only in workflow-owned repositories, without asking the user to configure a username or email.
+- When a signing key is configured, each workflow-created commit is signed, passes `git verify-commit` before pushing, and has GitHub status `verified: true` after pushing and before opening the PR. When no key is configured, commits are intentionally unsigned and signature checks are skipped; no signing setup is requested and any repository policy requiring signatures is reported as a blocker.
 - Available catalog validation passes for the touched entry. Schema incompatibilities are reported rather than bypassed; missing website support is explicitly disclosed.
 
 Report the catalog pull request URL, entry path, selected product, title, category, approved one-line summary, and upload path used. Report a prototype repository or live URL only when it actually exists, distinguishing failed deployments from working live prototypes. For screenshot documentation, report the screenshot set and intended catalog sub-page without inventing its URL. Clearly identify any failed publishing step, skipped check, missing website integration, or manual action still required. Retain the build workspace for diagnosis after a publishing failure even when screenshot documentation is contributed successfully.
