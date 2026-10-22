@@ -5,13 +5,8 @@ description: "Register a Figma prototype in the internal prototype registry. Use
 
 Use the `publish-prototype` skill in Figma input mode.
 
-Ask the user for the Figma URL first and validate that it starts with `https://www.figma.com/`. Then ask, one field at a time, for the title, category (`exploratory`, `component`, or `handover`), description, and exact product from `resources/products.md`. Ask for or generate a thumbnail, then show the registry directory and ask for final confirmation before changing GitHub.
+Ask the user for the Figma URL first. Validate HTTPS and the parsed hostname `figma.com` or `www.figma.com` rather than using a string prefix. Then use the structured ask tool to ask whether there is a connected source, accepting its web URL or an explicit no-source answer. Record that answer as Source repository and leave `hosted-repo` empty.
 
-Create only the minimal registry directory under `canonical/design-prototypes`:
+Follow the skill's GitHub CLI installation and authentication preflight, one-field-at-a-time metadata and summary questions, thumbnail capture, collision checks, and final confirmation. Do not ask for a long description.
 
-```text
-<product-name>/<prototype-name>/README.md
-<product-name>/<prototype-name>/<thumbnail-file>
-```
-
-The README may contain the same-directory thumbnail reference, the Figma URL, and an optional source repository URL if the user provides one. Do not create a prototype repository or GitHub Pages site for this mode. Open the registry pull request with `gh`; do not merge it.
+Contribute `Prototypes/<slug>.md` and `Prototypes/<slug>/thumbnail.webp` to `canonical/ai-design-ops` using the skill's catalog metadata and validation rules. Do not create a prototype repository or GitHub Pages site for this mode. Open the catalog pull request with `gh`; do not merge it.
