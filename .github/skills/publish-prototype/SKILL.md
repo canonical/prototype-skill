@@ -52,7 +52,7 @@ Suggest a concise title from the artifact or its documentation, and a category f
 | Product | Require one exact value from `./resources/products.md`; do not invent or alter names. |
 | Category | Require `exploratory`, `component`, or `handover`; reject other values. |
 | Owner | Confirm a GitHub handle. |
-| Sensitivity | Ask; use the catalog's allowed values, never guess. |
+| Sensitivity | Ask for exactly `green`, `yellow`, or `red`, using the meanings below; reject other values, including `public`, `internal`, and `private`. Never infer or default the choice. |
 | Archived | Follow the catalog convention. |
 | Date added | Current local ISO date for new entries; preserve for updates. |
 | Medium | Exactly one value from the input-mode table, derived from the final outcome, never asked separately. |
@@ -62,6 +62,18 @@ Suggest a concise title from the artifact or its documentation, and a category f
 | Thumbnail | `<slug>/thumbnail.webp`, relative to the entry. |
 
 Do not ask for or include Difficulty, Focus, or Output. Use the catalog's shared field labels and values, but the prototype-specific Medium values above. Put the approved summary once in the opening paragraph; if a Prototypes template also requires a summary metadata field, keep both identical.
+
+### Sensitivity Values
+
+The catalog's `TAGS.md` defines this shared scale for Projects and Prototypes. Present these meanings with the structured choices and store the exact lowercase value:
+
+- `green`: Safe for public, internal, or generated/non-sensitive content. No personal data, secrets, or confidential information.
+- `yellow`: Internal, non-sensitive work only, with content already approved for internal use. No personal data, PII, or credentials.
+- `red`: Highest-risk level. Only public, non-sensitive, or clearly approved synthetic content; no personal data or internal information.
+
+These describe safe content use, not repository visibility or access permissions. Do not translate `public` to `green` automatically; ask the user to choose. The values and meanings are defined here even if the catalog or a Prototypes template cannot be read. Catalog access and validation are still required before contribution; if the fetched taxonomy differs, report the mismatch and stop rather than silently changing values.
+
+### Source Provenance
 
 For source provenance, inspect only the selected source repository's remotes (for example, `git -C <selected-source-directory> remote get-url origin`), archive documentation, or explicit upstream links. Never substitute this skill's repository or an unrelated enclosing repository. Normalize verified HTTPS, SSH, or SCP-style remotes to credential-free HTTPS web UI URLs, removing clone-only `.git` suffixes; support the actual Git host. Use structured URL parsing where applicable and reject embedded credentials and filesystem paths. Ask when provenance is ambiguous or absent, allowing no source. For Figma, use the explicit connected-source answer, not the prototype URL by default.
 
